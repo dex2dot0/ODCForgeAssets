@@ -7,6 +7,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MathRound", "MathRound\Math
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MathRound.Tests", "MathRound.Tests\MathRound.Tests.csproj", "{86521F97-E60A-AE09-7153-FD103DD7FB59}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UUIDGenerator", "UUIDGenerator\UUIDGenerator.csproj", "{41FB8302-E7AC-4A8A-B2A4-D976D995CF0A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UUIDGenerator.Tests", "UUIDGenerator.Tests\UUIDGenerator.Tests.csproj", "{FE4999A2-1918-4E99-8601-0E535150DBAF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{86521F97-E60A-AE09-7153-FD103DD7FB59}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{86521F97-E60A-AE09-7153-FD103DD7FB59}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{86521F97-E60A-AE09-7153-FD103DD7FB59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41FB8302-E7AC-4A8A-B2A4-D976D995CF0A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41FB8302-E7AC-4A8A-B2A4-D976D995CF0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41FB8302-E7AC-4A8A-B2A4-D976D995CF0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41FB8302-E7AC-4A8A-B2A4-D976D995CF0A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE4999A2-1918-4E99-8601-0E535150DBAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE4999A2-1918-4E99-8601-0E535150DBAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE4999A2-1918-4E99-8601-0E535150DBAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE4999A2-1918-4E99-8601-0E535150DBAF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
