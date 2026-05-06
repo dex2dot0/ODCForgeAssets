@@ -14,4 +14,11 @@
     <Folder Include="resources\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="resources\uuid_generator.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
