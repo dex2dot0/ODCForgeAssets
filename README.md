@@ -51,14 +51,22 @@ Use the repo command from the repository root, for example:
 
 ```cmd
 icon.cmd UUIDGenerator --icon UUIDGenerator\resources\uuid_generator.png
-icon.cmd JsonPlaceholderKiota --placeholder
 ```
 
 Or use PowerShell directly:
 
 ```powershell
 .\setup-project-icon.ps1 -ProjectName UUIDGenerator -IconPath .\UUIDGenerator\resources\uuid_generator.png
-.\setup-project-icon.ps1 -ProjectName JsonPlaceholderKiota -ScaffoldPlaceholder
+```
+
+To use the a generic icon
+
+```cmd
+icon.cmd UUIDGenerator --placeholder
+```
+
+```powershell
+.\setup-project-icon.ps1 -ProjectName UUIDGenerator -ScaffoldPlaceholder
 ```
 
 For Kiota generator-backed projects, the command updates the stable generator config so the icon survives regeneration.

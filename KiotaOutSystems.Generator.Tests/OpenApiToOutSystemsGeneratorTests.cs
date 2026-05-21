@@ -1,6 +1,7 @@
 using System.Net;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 
 namespace KiotaOutSystems.Generator.Tests;
 
@@ -11,11 +12,12 @@ public class OpenApiToOutSystemsGeneratorTests
     {
         var repoRoot = GetRepoRoot();
         var outputDirectory = CreateTempDirectory();
+        var configPath = Path.Combine(repoRoot, "JsonPlaceholderKiota", "outsystems-generator.json");
         var options = CreateOptions(
             specSource: Path.Combine(repoRoot, "JsonPlaceholderKiota", "Specs", "posts-api.yml"),
             outputDirectory: outputDirectory,
             kiotaLockPath: Path.Combine(repoRoot, "JsonPlaceholderKiota", "Client", "kiota-lock.json"),
-            configPath: Path.Combine(repoRoot, "JsonPlaceholderKiota", "outsystems-generator.json"));
+            configPath: configPath);
 
         var loadedSpec = await SpecSourceLoader.LoadAsync(options.SpecSource, CancellationToken.None);
         var result = OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
@@ -34,7 +36,10 @@ public class OpenApiToOutSystemsGeneratorTests
         Assert.Contains("public struct CreatePostRequest", structuresFile);
         Assert.Contains("public struct UpdatePostRequest", structuresFile);
         Assert.Contains("Creates a post in the downstream API.", actionsFile);
-        Assert.Contains("IconResourceName = \"JsonPlaceholderKiota.resources.ProjectIcon.png\"", actionsFile);
+        var configDocument = JsonDocument.Parse(await File.ReadAllTextAsync(configPath));
+        var expectedIconResourceName = configDocument.RootElement.GetProperty("icon").GetProperty("resourceName").GetString();
+        Assert.NotNull(expectedIconResourceName);
+        Assert.Contains($"IconResourceName = \"{expectedIconResourceName}\"", actionsFile);
         Assert.Contains("\"operations\"", manifestFile);
     }
 
@@ -286,7 +291,7 @@ public class OpenApiToOutSystemsGeneratorTests
             public interface IGenerated {}
             """);
 
-        RunIconScript(tempRoot, projectName, "-ScaffoldPlaceholder");
+        var output = RunIconScript(tempRoot, projectName, "-ScaffoldPlaceholder");
 
         var csproj = File.ReadAllText(Path.Combine(projectPath, $"{projectName}.csproj"));
         var config = File.ReadAllText(Path.Combine(projectPath, "outsystems-generator.json"));
@@ -298,6 +303,7 @@ public class OpenApiToOutSystemsGeneratorTests
         Assert.Contains("GeneratedIconProject.resources.ProjectIcon.png", config);
         Assert.DoesNotContain("IconResourceName =", generated);
         Assert.True(File.Exists(Path.Combine(projectPath, "resources", "ProjectIcon.png")));
+        Assert.Contains("Regenerate the OutSystems wrapper files before you publish", output);
     }
 
     private static GeneratorOptions CreateOptions(string specSource, string outputDirectory, string kiotaLockPath, string? configPath = null)
@@ -338,7 +344,7 @@ public class OpenApiToOutSystemsGeneratorTests
         return directory;
     }
 
-    private static void RunIconScript(string baseDirectory, string projectName, string additionalArguments)
+    private static string RunIconScript(string baseDirectory, string projectName, string additionalArguments)
     {
         var scriptPath = Path.Combine(GetRepoRoot(), "setup-project-icon.ps1");
         var startInfo = new ProcessStartInfo
@@ -357,6 +363,7 @@ public class OpenApiToOutSystemsGeneratorTests
         var stderr = process.StandardError.ReadToEnd();
 
         Assert.True(process.ExitCode == 0, $"Icon setup script failed.{Environment.NewLine}STDOUT:{Environment.NewLine}{stdout}{Environment.NewLine}STDERR:{Environment.NewLine}{stderr}");
+        return stdout;
     }
 
     private sealed class TestHttpServer : IDisposable
