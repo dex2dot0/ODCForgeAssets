@@ -1,24 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="OutSystems.ExternalLibraries.SDK" Version="1.5.0" />
   </ItemGroup>
-
   <ItemGroup>
     <Folder Include="resources\" />
   </ItemGroup>
-
   <ItemGroup>
-    <Content Include="resources\uuid_generator.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
+    <EmbeddedResource Include="resources\uuid_generator.png" />
   </ItemGroup>
-
 </Project>

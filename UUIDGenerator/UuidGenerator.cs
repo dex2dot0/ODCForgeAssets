@@ -7,7 +7,7 @@ namespace UUIDGenerator
     /// </summary>
     public class UuidGenerator : IUuidGenerator { }
 
-    [OSInterface(Description = "Generates a random UUID", Name = "UUIDGenerator")]
+    [OSInterface(Description = "Generates a random UUID", Name = "UUIDGenerator", IconResourceName = "UUIDGenerator.resources.uuid_generator.png")]
     public interface IUuidGenerator
     {
         [OSAction(
@@ -20,3 +20,6 @@ namespace UUIDGenerator
         }
     }
 }
+
+
+
