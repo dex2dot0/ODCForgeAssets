@@ -4,6 +4,22 @@ Quick guide for publishing .NET projects in this codebase to OutSystems-compatib
 
 ## Quick Start
 
+### Before Publishing
+
+OutSystems requires an icon/logo for external libraries. In this repo, the supported publishable pattern is an embedded PNG resource referenced by `IconResourceName` on the library's `OSInterface`.
+
+Use the helper command before publishing if your project does not already have a wired icon:
+
+```cmd
+icon.cmd YourProject --placeholder
+```
+
+Or wire an existing PNG:
+
+```cmd
+icon.cmd YourProject --icon YourProject\resources\YourIcon.png
+```
+
 ### Publish a Project
 
 ```cmd

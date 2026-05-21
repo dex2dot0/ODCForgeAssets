@@ -1,0 +1,22 @@
+{
+  "inputName": "JSONPlaceholder",
+  "source": "C:\\Projects\\dex2dot0\\ODCForgeAssets\\JsonPlaceholderKiota\\Specs\\posts-api.yml",
+  "specHash": "sha256:81897B9DB3B87BF5D8313687373B60A1E1B7463FF2181D751DE67A46F94EE08D",
+  "ClientNamespace": "JsonPlaceholderKiota.Client",
+  "ClientClassName": "PostsClient",
+  "KiotaVersion": "1.31.1",
+  "emitInterface": true,
+  "iconResourceName": "JsonPlaceholderKiota.resources.ProjectIcon.png",
+  "structures": [
+    "Post",
+    "CreatePostRequest",
+    "UpdatePostRequest"
+  ],
+  "operations": [
+    "ListPosts",
+    "CreatePost",
+    "GetPostById",
+    "UpdatePost",
+    "DeletePost"
+  ]
+}

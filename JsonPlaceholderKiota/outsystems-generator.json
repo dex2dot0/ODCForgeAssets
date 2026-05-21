@@ -1,0 +1,35 @@
+{
+    "namespace":  "JsonPlaceholderKiota.Generated",
+    "className":  "JsonPlaceholderPostsGenerated",
+    "interfaceName":  "IJsonPlaceholderPostsGenerated",
+    "inputName":  "JSONPlaceholder",
+    "actionOverrides":  {
+                            "GET /posts":  {
+                                               "description":  "Lists posts with optional user ID and title filters."
+                                           },
+                            "POST /posts":  {
+                                                "description":  "Creates a post in the downstream API."
+                                            },
+                            "GET /posts/{post-id}":  {
+                                                         "description":  "Gets a post by its identifier."
+                                                     },
+                            "PATCH /posts/{post-id}":  {
+                                                           "description":  "Updates a post by its identifier."
+                                                       },
+                            "DELETE /posts/{post-id}":  {
+                                                            "description":  "Deletes a post by its identifier."
+                                                        }
+                        },
+    "structureOverrides":  {
+                               "CreatePostRequest":  {
+                                                         "description":  "Payload used to create a post."
+                                                     },
+                               "UpdatePostRequest":  {
+                                                         "description":  "Payload used to update a post."
+                                                     }
+                           },
+    "icon":  {
+                 "fileName":  "ProjectIcon.png",
+                 "resourceName":  "JsonPlaceholderKiota.resources.ProjectIcon.png"
+             }
+}
