@@ -29,7 +29,7 @@
                                                      }
                            },
     "icon":  {
-                 "fileName":  "ProjectIcon.png",
-                 "resourceName":  "JsonPlaceholderKiota.resources.ProjectIcon.png"
+                 "fileName":  "jsonplaceholder.png",
+                 "resourceName":  "JsonPlaceholderKiota.resources.jsonplaceholder.png"
              }
 }

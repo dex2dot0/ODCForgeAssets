@@ -6,7 +6,7 @@
   "ClientClassName": "PostsClient",
   "KiotaVersion": "1.31.1",
   "emitInterface": true,
-  "iconResourceName": "JsonPlaceholderKiota.resources.ProjectIcon.png",
+  "iconResourceName": "JsonPlaceholderKiota.resources.jsonplaceholder.png",
   "structures": [
     "Post",
     "CreatePostRequest",

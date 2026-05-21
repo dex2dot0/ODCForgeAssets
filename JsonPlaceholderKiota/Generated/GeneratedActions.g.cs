@@ -125,7 +125,7 @@ public class JsonPlaceholderPostsGenerated : IJsonPlaceholderPostsGenerated
 
 }
 
-[OSInterface(Description = "Generated OutSystems wrapper for JSONPlaceholder.", Name = "JsonPlaceholderPostsGenerated", IconResourceName = "JsonPlaceholderKiota.resources.ProjectIcon.png")]
+[OSInterface(Description = "Generated OutSystems wrapper for JSONPlaceholder.", Name = "JsonPlaceholderPostsGenerated", IconResourceName = "JsonPlaceholderKiota.resources.jsonplaceholder.png")]
 public interface IJsonPlaceholderPostsGenerated
 {
     [OSAction(Description = "Lists posts with optional user ID and title filters.", ReturnDescription = "The result returned by the API.", ReturnName = "Items")]

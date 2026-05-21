@@ -234,6 +234,7 @@ function Invoke-Main {
     if (Test-Path $generatorConfigPath) {
         Update-GeneratorConfigIcon -ConfigPath $generatorConfigPath -IconFileName $IconFileName -ResourceName $resourceName
         Write-Host "Updated generator config: $generatorConfigPath" -ForegroundColor Green
+        Write-Host "WARNING: This is a generator-backed project. Regenerate the OutSystems wrapper files before you publish so the generated OSInterface picks up the new IconResourceName." -ForegroundColor Yellow
     }
     else {
         Update-HandwrittenInterfaceIcon -ProjectPath $projectPath -ResourceName $resourceName
