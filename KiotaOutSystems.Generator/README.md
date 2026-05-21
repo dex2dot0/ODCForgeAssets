@@ -2,6 +2,137 @@
 
 A developer tool that reads an OpenAPI document, binds to Kiota client metadata, and emits OutSystems wrapper source files (structures, server actions, manifest).
 
+## Pre-requisites
+
+- .NET SDK installed so you can run `dotnet restore`, `dotnet build`, `dotnet test`, and `dotnet run`
+- PowerShell or `cmd` available from the repository root
+- an OpenAPI spec, either:
+  - a local `.json`, `.yaml`, or `.yml` file, or
+  - an HTTP/HTTPS URL that returns the spec document
+
+## Getting Started
+
+Use this workflow when you want to create a new OutSystems external-library project backed by an OpenAPI API spec and generate the wrapper code yourself.
+
+1. Scaffold the project from the repository root.
+
+```powershell
+$projectName = "MyApiProject"
+.\setup-kiota-project.ps1 -ProjectName $projectName
+```
+
+By default, the script:
+
+- creates the class library project
+- adds it to `ForgeAssets.sln`
+- removes the default `Class1.cs`
+- adds the required package references
+- creates the `Client/`, `Generated/`, and `Specs/` folders
+- scaffolds a starter `outsystems-generator.json`
+
+Useful options:
+
+```powershell
+.\setup-kiota-project.ps1 `
+  -ProjectName "MyApiProject" `
+  -InputName "My API" `
+  -ClientClassName "MyApiClient" `
+  -GeneratedClassName "MyApiActionsGenerated" `
+  -GeneratedInterfaceName "IMyApiActionsGenerated"
+```
+
+Use `-SkipSolutionAdd` if you want to scaffold the project without adding it to `ForgeAssets.sln`.
+
+2. Put your OpenAPI description in the project.
+
+- If you already have a local spec file, copy it under `$projectName/Specs/`.
+- If you will generate directly from a remote URL later, you can skip the local file copy, but you will still usually want a checked-in spec for repeatability.
+
+3. Generate the Kiota client.
+
+If this repo does not already have the Kiota local tool restored, run:
+
+```powershell
+dotnet tool restore
+```
+
+For a local spec file:
+
+```powershell
+dotnet tool run kiota generate `
+  -l CSharp `
+  -c MyApiClient `
+  -n "$projectName.Client" `
+  -d ".\$projectName\Specs\openapi.yml" `
+  -o ".\$projectName\Client"
+```
+
+For a remote spec URL:
+
+```powershell
+dotnet tool run kiota generate `
+  -l CSharp `
+  -c MyApiClient `
+  -n "$projectName.Client" `
+  -d "https://example.com/openapi.json" `
+  -o ".\$projectName\Client"
+```
+
+This produces the Kiota client code plus the `kiota-lock.json` file that the OutSystems generator can reuse.
+
+The scaffold script already creates a starter `outsystems-generator.json`. Add action, structure, field, or icon overrides later as needed. For a full sample, see `JsonPlaceholderKiota/outsystems-generator.json`.
+
+4. Run the OutSystems generator.
+
+For a local spec file:
+
+```powershell
+dotnet run --project KiotaOutSystems.Generator -- `
+  --config ".\$projectName\outsystems-generator.json" `
+  --spec ".\$projectName\Specs\openapi.yml" `
+  --output ".\$projectName\Generated" `
+  --kiota-lock ".\$projectName\Client\kiota-lock.json"
+```
+
+For a remote spec URL:
+
+```powershell
+dotnet run --project KiotaOutSystems.Generator -- `
+  --config ".\$projectName\outsystems-generator.json" `
+  --spec "https://example.com/openapi.json" `
+  --output ".\$projectName\Generated" `
+  --kiota-lock ".\$projectName\Client\kiota-lock.json"
+```
+
+The generator writes:
+
+- `GeneratedStructures.g.cs`
+- `GeneratedActions.g.cs`
+- `generation-manifest.json`
+
+5. Add an icon before packaging/publishing.
+
+For a placeholder:
+
+```cmd
+icon.cmd MyApiProject --placeholder
+```
+
+For an existing PNG:
+
+```cmd
+icon.cmd MyApiProject --icon path\to\icon.png
+```
+
+For generator-backed projects, this updates `outsystems-generator.json` so `IconResourceName` survives regeneration.
+
+6. Review the generated surface and regenerate as needed.
+
+- If your assembly should expose only the generated OutSystems interface, do not add a second handwritten `OSInterface`.
+- If you do want a handwritten facade instead, run the generator with `--emit-interface false`.
+- Re-run Kiota when the source API changes.
+- Re-run this generator whenever the spec, config, or icon metadata changes.
+
 ## Inputs
 
 The generator accepts either:
