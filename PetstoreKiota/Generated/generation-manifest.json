@@ -9,17 +9,11 @@
   "emitInterface": true,
   "iconResourceName": null,
   "structures": [
-    "Order",
     "Category",
-    "User",
     "Tag",
     "Pet",
     "ApiResponse",
-    "AddPetRequest",
-    "UpdatePetRequest",
-    "PlaceOrderRequest",
-    "CreateUserRequest",
-    "UpdateUserRequest"
+    "UpdatePetWithFormRequest"
   ],
   "operations": [
     "AddPet",
@@ -27,17 +21,8 @@
     "FindPetsByStatus",
     "FindPetsByTags",
     "GetPetById",
+    "UpdatePetWithForm",
     "DeletePet",
-    "PlaceOrder",
-    "GetOrderById",
-    "DeleteOrder",
-    "CreateUser",
-    "CreateUsersWithArrayInput",
-    "CreateUsersWithListInput",
-    "LoginUser",
-    "LogoutUser",
-    "GetUserByName",
-    "UpdateUser",
-    "DeleteUser"
+    "UploadFile"
   ]
 }

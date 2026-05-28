@@ -1,6 +1,12 @@
 {
-    "namespace":  "PetstoreKiota.Generated",
-    "className":  "PetstoreActionsGenerated",
-    "interfaceName":  "IPetstoreActionsGenerated",
-    "inputName":  "Swagger Petstore"
+	"namespace": "PetstoreKiota.Generated",
+	"className": "PetstoreActionsGenerated",
+	"interfaceName": "IPetstoreActionsGenerated",
+	"inputName": "Swagger Petstore",
+	"targets": [
+		{
+			"path": "/pet*",
+			"methods": ["GET", "POST", "PUT", "DELETE"]
+		}
+	]
 }

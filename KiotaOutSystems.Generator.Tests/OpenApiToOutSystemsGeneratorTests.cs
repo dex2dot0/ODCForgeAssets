@@ -112,6 +112,129 @@ public class OpenApiToOutSystemsGeneratorTests
     }
 
     [Fact]
+    public async Task Generate_WithPetstorePathTargets_OnlyEmitsPetOperationsAndRequiredStructures()
+    {
+        var repoRoot = GetRepoRoot();
+        var outputDirectory = CreateTempDirectory();
+        var configPath = Path.Combine(CreateTempDirectory(), "generator-config.json");
+        await File.WriteAllTextAsync(configPath, """
+            {
+              "targets": [
+                {
+                  "path": "/pet*"
+                }
+              ]
+            }
+            """);
+
+        var options = new GeneratorOptions
+        {
+            SpecSource = Path.Combine(repoRoot, "PetstoreKiota", "Specs", "petstore-31.json"),
+            OutputDirectory = outputDirectory,
+            Namespace = "PetstoreKiota.Generated",
+            KiotaLockPath = Path.Combine(repoRoot, "PetstoreKiota", "Client", "kiota-lock.json"),
+            ClassName = "PetstoreActionsGenerated",
+            InterfaceName = "IPetstoreActionsGenerated",
+            InputName = "Swagger Petstore",
+            ConfigPath = configPath
+        };
+
+        var loadedSpec = await SpecSourceLoader.LoadAsync(options.SpecSource, CancellationToken.None);
+        OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
+
+        var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
+        var structuresFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedStructures.g.cs"));
+        var manifestFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "generation-manifest.json"));
+
+        Assert.Contains("AddPet(Pet requestBody)", actionsFile);
+        Assert.Contains("UpdatePet(Pet requestBody)", actionsFile);
+        Assert.Contains("FindPetsByStatus", actionsFile);
+        Assert.Contains("FindPetsByTags", actionsFile);
+        Assert.Contains("GetPetById", actionsFile);
+        Assert.Contains("UpdatePetWithForm", actionsFile);
+        Assert.Contains("DeletePet", actionsFile);
+        Assert.Contains("UploadFile", actionsFile);
+        Assert.DoesNotContain("PlaceOrder", actionsFile);
+        Assert.DoesNotContain("LoginUser", actionsFile);
+
+        Assert.Contains("public struct Pet", structuresFile);
+        Assert.Contains("public struct Category", structuresFile);
+        Assert.Contains("public struct Tag", structuresFile);
+        Assert.Contains("public struct ApiResponse", structuresFile);
+        Assert.Contains("public struct UpdatePetWithFormRequest", structuresFile);
+        Assert.DoesNotContain("public struct Order", structuresFile);
+        Assert.DoesNotContain("public struct User", structuresFile);
+
+        Assert.Contains("\"AddPet\"", manifestFile);
+        Assert.Contains("\"UpdatePetWithForm\"", manifestFile);
+        Assert.Contains("\"UploadFile\"", manifestFile);
+        Assert.Contains("\"DeletePet\"", manifestFile);
+        Assert.DoesNotContain("\"PlaceOrder\"", manifestFile);
+        Assert.DoesNotContain("\"LoginUser\"", manifestFile);
+    }
+
+    [Fact]
+    public async Task Generate_WithPetstorePathAndMethodTargets_OnlyEmitsMatchingOperations()
+    {
+        var repoRoot = GetRepoRoot();
+        var outputDirectory = CreateTempDirectory();
+        var configPath = Path.Combine(CreateTempDirectory(), "generator-config.json");
+        await File.WriteAllTextAsync(configPath, """
+            {
+              "targets": [
+                {
+                  "path": "/pet*",
+                  "methods": ["GET"]
+                }
+              ]
+            }
+            """);
+
+        var options = new GeneratorOptions
+        {
+            SpecSource = Path.Combine(repoRoot, "PetstoreKiota", "Specs", "petstore-31.json"),
+            OutputDirectory = outputDirectory,
+            Namespace = "PetstoreKiota.Generated",
+            KiotaLockPath = Path.Combine(repoRoot, "PetstoreKiota", "Client", "kiota-lock.json"),
+            ClassName = "PetstoreActionsGenerated",
+            InterfaceName = "IPetstoreActionsGenerated",
+            InputName = "Swagger Petstore",
+            ConfigPath = configPath
+        };
+
+        var loadedSpec = await SpecSourceLoader.LoadAsync(options.SpecSource, CancellationToken.None);
+        OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
+
+        var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
+        var structuresFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedStructures.g.cs"));
+        var manifestFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "generation-manifest.json"));
+
+        Assert.Contains("FindPetsByStatus", actionsFile);
+        Assert.Contains("FindPetsByTags", actionsFile);
+        Assert.Contains("GetPetById", actionsFile);
+        Assert.DoesNotContain("AddPet", actionsFile);
+        Assert.DoesNotContain("UpdatePet", actionsFile);
+        Assert.DoesNotContain("DeletePet", actionsFile);
+        Assert.DoesNotContain("UpdatePetWithForm", actionsFile);
+        Assert.DoesNotContain("UploadFile", actionsFile);
+        Assert.DoesNotContain("PlaceOrder", actionsFile);
+
+        Assert.Contains("public struct Pet", structuresFile);
+        Assert.DoesNotContain("public struct Category", structuresFile);
+        Assert.DoesNotContain("public struct Tag", structuresFile);
+        Assert.DoesNotContain("public struct ApiResponse", structuresFile);
+        Assert.DoesNotContain("public struct UpdatePetWithFormRequest", structuresFile);
+        Assert.DoesNotContain("public struct Order", structuresFile);
+        Assert.DoesNotContain("public struct User", structuresFile);
+
+        Assert.Contains("\"FindPetsByStatus\"", manifestFile);
+        Assert.Contains("\"GetPetById\"", manifestFile);
+        Assert.DoesNotContain("\"AddPet\"", manifestFile);
+        Assert.DoesNotContain("\"UpdatePetWithForm\"", manifestFile);
+        Assert.DoesNotContain("\"PlaceOrder\"", manifestFile);
+    }
+
+    [Fact]
     public async Task Generate_WithEmitInterfaceFalse_DoesNotEmitOsInterface()
     {
         var repoRoot = GetRepoRoot();

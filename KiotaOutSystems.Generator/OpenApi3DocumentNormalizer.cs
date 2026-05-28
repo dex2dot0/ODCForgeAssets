@@ -11,7 +11,10 @@ internal static class OpenApi3DocumentNormalizer
     {
         var schemas = BuildSchemas(document, kiotaMetadata, config);
         var operations = BuildOperations(document, schemas, config, kiotaMetadata);
-        return ApplyOutSystemsCompatibility(schemas, operations);
+        var compatibleDocument = ApplyOutSystemsCompatibility(schemas, operations);
+        return config.Targets.Count > 0
+            ? PruneUnreachableSchemas(compatibleDocument)
+            : compatibleDocument;
     }
 
     private static IReadOnlyList<SchemaDefinition> BuildSchemas(OpenApiDocument document, KiotaMetadata kiotaMetadata, EffectiveGeneratorConfig config)
@@ -1951,6 +1954,56 @@ internal static class OpenApi3DocumentNormalizer
             .ToList();
 
         return new NormalizedOpenApiDocument(compatibleSchemas, compatibleOperations);
+    }
+
+    private static NormalizedOpenApiDocument PruneUnreachableSchemas(NormalizedOpenApiDocument document)
+    {
+        var schemaLookup = document.Schemas.ToDictionary(schema => schema.Name, StringComparer.OrdinalIgnoreCase);
+        var reachableSchemaNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var operation in document.Operations)
+        {
+            foreach (var parameter in operation.Parameters)
+            {
+                VisitSchemaReferences(parameter.CSharpType, schemaLookup, reachableSchemaNames);
+            }
+
+            if (operation.RequestBody?.SchemaName is { Length: > 0 } requestBodySchemaName)
+            {
+                VisitSchemaReferences(requestBodySchemaName, schemaLookup, reachableSchemaNames);
+            }
+
+            if (operation.Response?.SchemaName is { Length: > 0 } responseSchemaName)
+            {
+                VisitSchemaReferences(responseSchemaName, schemaLookup, reachableSchemaNames);
+            }
+        }
+
+        var reachableSchemas = document.Schemas
+            .Where(schema => reachableSchemaNames.Contains(schema.Name))
+            .ToList();
+
+        return document with { Schemas = reachableSchemas };
+    }
+
+    private static void VisitSchemaReferences(
+        string typeName,
+        IReadOnlyDictionary<string, SchemaDefinition> schemaLookup,
+        HashSet<string> reachableSchemaNames)
+    {
+        foreach (Match match in Regex.Matches(typeName, @"[A-Za-z_][A-Za-z0-9_]*"))
+        {
+            var candidate = match.Value;
+            if (!schemaLookup.TryGetValue(candidate, out var schema) || !reachableSchemaNames.Add(schema.Name))
+            {
+                continue;
+            }
+
+            foreach (var property in schema.Properties)
+            {
+                VisitSchemaReferences(property.CSharpType, schemaLookup, reachableSchemaNames);
+            }
+        }
     }
 
     private static BodyDefinition? RewriteOutSystemsRequestBody(BodyDefinition? body, IReadOnlySet<string> emptySchemaNames)

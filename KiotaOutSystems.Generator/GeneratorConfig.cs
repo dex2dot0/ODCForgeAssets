@@ -20,6 +20,8 @@ internal sealed class GeneratorConfig
 
     public IconConfig? Icon { get; init; }
 
+    public List<TargetConfig>? Targets { get; init; }
+
     public Dictionary<string, NameDescriptionOverride>? ActionOverrides { get; init; }
 
     public Dictionary<string, NameDescriptionOverride>? StructureOverrides { get; init; }
@@ -41,6 +43,13 @@ internal sealed class IconConfig
     public string? ResourceName { get; init; }
 }
 
+internal sealed class TargetConfig
+{
+    public string? Path { get; init; }
+
+    public List<string>? Methods { get; init; }
+}
+
 internal sealed class EffectiveGeneratorConfig
 {
     public string? Namespace { get; init; }
@@ -59,10 +68,30 @@ internal sealed class EffectiveGeneratorConfig
 
     public IconConfig? Icon { get; init; }
 
+    public IReadOnlyList<EffectiveTargetConfig> Targets { get; init; } = [];
+
     public IReadOnlyDictionary<string, NameDescriptionOverride> ActionOverrides { get; init; } = new Dictionary<string, NameDescriptionOverride>(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyDictionary<string, NameDescriptionOverride> StructureOverrides { get; init; } = new Dictionary<string, NameDescriptionOverride>(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, NameDescriptionOverride>> StructureFieldOverrides { get; init; } =
         new Dictionary<string, IReadOnlyDictionary<string, NameDescriptionOverride>>(StringComparer.OrdinalIgnoreCase);
+}
+
+internal sealed class EffectiveTargetConfig
+{
+    public required string PathPattern { get; init; }
+
+    public required bool IsPrefixMatch { get; init; }
+
+    public IReadOnlySet<string> Methods { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    public bool Matches(string path, string method)
+    {
+        var pathMatches = IsPrefixMatch
+            ? path.StartsWith(PathPattern, StringComparison.OrdinalIgnoreCase)
+            : string.Equals(path, PathPattern, StringComparison.OrdinalIgnoreCase);
+
+        return pathMatches && (Methods.Count == 0 || Methods.Contains(method));
+    }
 }

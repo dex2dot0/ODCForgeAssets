@@ -80,7 +80,7 @@ dotnet tool run kiota generate `
 
 This produces the Kiota client code plus the `kiota-lock.json` file that the OutSystems generator can reuse.
 
-The scaffold script already creates a starter `outsystems-generator.json`. Add action, structure, field, or icon overrides later as needed. For a full sample, see `JsonPlaceholderKiota/outsystems-generator.json`.
+The scaffold script already creates a starter `outsystems-generator.json`. Add action, structure, field, icon, or endpoint targeting overrides later as needed. For a full sample, see `JsonPlaceholderKiota/outsystems-generator.json`.
 
 4. Run the OutSystems generator.
 
@@ -146,6 +146,7 @@ You can also pass a generator config file with `--config` to centralize:
 
 - interface/class/namespace naming
 - `emitInterface` behavior
+- endpoint/method targeting
 - action name/description overrides
 - structure and field name/description overrides
 - icon metadata for generated `OSInterface` output
@@ -158,6 +159,12 @@ Generator config example:
 	"className": "JsonPlaceholderPostsGenerated",
 	"interfaceName": "IJsonPlaceholderPostsGenerated",
 	"inputName": "JSONPlaceholder",
+	"targets": [
+		{
+			"path": "/posts*",
+			"methods": ["GET", "POST", "PATCH", "DELETE"]
+		}
+	],
 	"icon": {
 		"fileName": "ProjectIcon.png",
 		"resourceName": "JsonPlaceholderKiota.resources.ProjectIcon.png"
@@ -166,6 +173,30 @@ Generator config example:
 ```
 
 For a fuller example, see [JsonPlaceholderKiota/outsystems-generator.json](JsonPlaceholderKiota/outsystems-generator.json).
+
+## Target specific endpoints
+
+Use `targets` when you want to generate only part of a spec instead of the full API surface.
+
+- If `targets` is omitted, the generator keeps the current all-endpoints behavior.
+- `path` supports exact matches such as `"/users"` or a trailing `*` prefix wildcard such as `"/pet*"`.
+- `methods` is optional. If omitted, all HTTP methods for the matched path are considered.
+- Multiple targets are grouped together as an OR.
+
+Example:
+
+```json
+{
+	"targets": [
+		{
+			"path": "/pet*",
+			"methods": ["GET", "POST", "PUT", "DELETE"]
+		}
+	]
+}
+```
+
+The generator keeps the selected actions plus any OutSystems request/response structures they still need. For the Petstore example, targeting `"/pet*"` excludes `/store/*` and `/user/*` actions while retaining supporting models such as `Pet`, `Category`, and `Tag`.
 
 ## OutSystems interface emission
 
