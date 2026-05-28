@@ -1,0 +1,6 @@
+{
+    "namespace":  "DocuSignKiota.Generated",
+    "className":  "DocuSignActionsGenerated",
+    "interfaceName":  "IDocuSignActionsGenerated",
+    "inputName":  "DocuSign eSignature API"
+}

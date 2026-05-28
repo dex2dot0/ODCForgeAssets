@@ -1,0 +1,43 @@
+{
+  "inputName": "Swagger Petstore",
+  "source": "C:\\Projects\\dex2dot0\\ODCForgeAssets\\PetstoreKiota\\Specs\\petstore-31.json",
+  "specHash": "sha256:B77CBFA30D6D4A7546445974154649AC3577A43DB34A5DFA5B46A4D7B72BE1E6",
+  "specificationVersion": "3.1.0",
+  "ClientNamespace": "PetstoreKiota.Client",
+  "ClientClassName": "PetstoreClient",
+  "KiotaVersion": "1.31.1",
+  "emitInterface": true,
+  "iconResourceName": null,
+  "structures": [
+    "Order",
+    "Category",
+    "User",
+    "Tag",
+    "Pet",
+    "ApiResponse",
+    "AddPetRequest",
+    "UpdatePetRequest",
+    "PlaceOrderRequest",
+    "CreateUserRequest",
+    "UpdateUserRequest"
+  ],
+  "operations": [
+    "AddPet",
+    "UpdatePet",
+    "FindPetsByStatus",
+    "FindPetsByTags",
+    "GetPetById",
+    "DeletePet",
+    "PlaceOrder",
+    "GetOrderById",
+    "DeleteOrder",
+    "CreateUser",
+    "CreateUsersWithArrayInput",
+    "CreateUsersWithListInput",
+    "LoginUser",
+    "LogoutUser",
+    "GetUserByName",
+    "UpdateUser",
+    "DeleteUser"
+  ]
+}

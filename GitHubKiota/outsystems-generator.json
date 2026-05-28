@@ -1,0 +1,6 @@
+{
+    "namespace":  "GitHubKiota.Generated",
+    "className":  "GitHubActionsGenerated",
+    "interfaceName":  "IGitHubActionsGenerated",
+    "inputName":  "GitHub REST API"
+}

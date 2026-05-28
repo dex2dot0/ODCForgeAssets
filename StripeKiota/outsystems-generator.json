@@ -1,0 +1,6 @@
+{
+    "namespace":  "StripeKiota.Generated",
+    "className":  "StripeActionsGenerated",
+    "interfaceName":  "IStripeActionsGenerated",
+    "inputName":  "Stripe API"
+}

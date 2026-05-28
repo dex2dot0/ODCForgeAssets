@@ -1,0 +1,6 @@
+{
+    "namespace":  "PetstoreKiota.Generated",
+    "className":  "PetstoreActionsGenerated",
+    "interfaceName":  "IPetstoreActionsGenerated",
+    "inputName":  "Swagger Petstore"
+}
