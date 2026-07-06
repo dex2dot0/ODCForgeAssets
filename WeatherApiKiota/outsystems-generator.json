@@ -1,0 +1,16 @@
+{
+	"namespace": "WeatherApiKiota.Generated",
+	"className": "WeatherApiActionsGenerated",
+	"interfaceName": "IWeatherApiActionsGenerated",
+	"inputName": "Weather API",
+	"targets": [
+		{
+			"path": "/current.json",
+			"methods": ["GET"]
+		}
+	],
+	"icon": {
+		"fileName": "ProjectIcon.png",
+		"resourceName": "WeatherApiKiota.resources.ProjectIcon.png"
+	}
+}

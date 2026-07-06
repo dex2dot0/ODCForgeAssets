@@ -11,7 +11,8 @@ internal static class OpenApi3DocumentNormalizer
     {
         var schemas = BuildSchemas(document, kiotaMetadata, config);
         var operations = BuildOperations(document, schemas, config, kiotaMetadata);
-        var compatibleDocument = ApplyOutSystemsCompatibility(schemas, operations);
+        var runtimeContext = BuildRuntimeContext(document, schemas, operations);
+        var compatibleDocument = ApplyOutSystemsCompatibility(schemas, operations, runtimeContext);
         return config.Targets.Count > 0
             ? PruneUnreachableSchemas(compatibleDocument)
             : compatibleDocument;
@@ -664,7 +665,8 @@ internal static class OpenApi3DocumentNormalizer
                         ResourcePropertyName: resourcePropertyName,
                         Parameters: parameters,
                         RequestBody: requestBody,
-                        Response: response));
+                        Response: response,
+                        SecurityRequirements: ResolveSecurityRequirements(document, operation)));
                 }
                 catch (NotSupportedException exception)
                 {
@@ -675,6 +677,138 @@ internal static class OpenApi3DocumentNormalizer
         }
 
         return operations;
+    }
+
+    private static RuntimeContextDefinition BuildRuntimeContext(
+        OpenApiDocument document,
+        IReadOnlyList<SchemaDefinition> schemas,
+        IReadOnlyList<OperationDefinition> operations)
+    {
+        var defaultBaseUrl = ResolveDefaultBaseUrl(document);
+        var requestOptionsTypeName = AllocateUniqueName("RequestOptions", schemas.Select(schema => schema.Name));
+        var usedSecuritySchemeIds = operations
+            .SelectMany(operation => operation.SecurityRequirements)
+            .SelectMany(requirement => requirement.SchemeIds)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var securitySchemes = ResolveSecuritySchemes(document)
+            .Where(scheme => usedSecuritySchemeIds.Contains(scheme.Id))
+            .ToArray();
+
+        return new RuntimeContextDefinition(defaultBaseUrl, requestOptionsTypeName, securitySchemes);
+    }
+
+    private static string? ResolveDefaultBaseUrl(OpenApiDocument document)
+    {
+        return document.Servers?
+            .Select(server => server?.Url?.Trim())
+            .FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
+    }
+
+    private static IReadOnlyList<SecurityRequirementDefinition> ResolveSecurityRequirements(OpenApiDocument document, OpenApiOperation operation)
+    {
+        var requirements = operation.Security is not null
+            ? operation.Security
+            : document.Security;
+
+        if (requirements is null || requirements.Count == 0)
+        {
+            return [];
+        }
+
+        var result = new List<SecurityRequirementDefinition>();
+        foreach (var requirement in requirements)
+        {
+            var schemeIds = requirement.Keys
+                .Select(ResolveSecuritySchemeId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (schemeIds.Length > 0)
+            {
+                result.Add(new SecurityRequirementDefinition(schemeIds));
+            }
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<SecuritySchemeDefinition> ResolveSecuritySchemes(OpenApiDocument document)
+    {
+        var rawSchemes = document.Components?.SecuritySchemes;
+        if (rawSchemes is null || rawSchemes.Count == 0)
+        {
+            return [];
+        }
+
+        var schemes = new List<SecuritySchemeDefinition>();
+        foreach (var (schemeId, scheme) in rawSchemes)
+        {
+            var resolvedScheme = ResolveSecurityScheme(scheme);
+            if (resolvedScheme?.Type is null || !IsSupportedSecuritySchemeType(resolvedScheme.Type.Value))
+            {
+                continue;
+            }
+
+            schemes.Add(new SecuritySchemeDefinition(
+                schemeId,
+                resolvedScheme.Type.Value.ToString(),
+                resolvedScheme.In?.ToString(),
+                resolvedScheme.Name,
+                resolvedScheme.Scheme,
+                resolvedScheme.Description));
+        }
+
+        return schemes;
+    }
+
+    private static OpenApiSecurityScheme? ResolveSecurityScheme(IOpenApiSecurityScheme? scheme)
+    {
+        return scheme switch
+        {
+            null => null,
+            OpenApiSecuritySchemeReference reference when reference.Target is OpenApiSecurityScheme target => target,
+            OpenApiSecurityScheme concreteScheme => concreteScheme,
+            _ => null
+        };
+    }
+
+    private static string? ResolveSecuritySchemeId(IOpenApiSecurityScheme scheme)
+    {
+        return scheme switch
+        {
+            OpenApiSecuritySchemeReference reference when !string.IsNullOrWhiteSpace(reference.Reference?.Id) => reference.Reference!.Id,
+            OpenApiSecuritySchemeReference reference when !string.IsNullOrWhiteSpace(reference.Name) => reference.Name,
+            OpenApiSecurityScheme concreteScheme when !string.IsNullOrWhiteSpace(concreteScheme.Name) => concreteScheme.Name,
+            _ => null
+        };
+    }
+
+    private static bool IsSupportedSecuritySchemeType(SecuritySchemeType type)
+    {
+        return type == SecuritySchemeType.ApiKey ||
+               type == SecuritySchemeType.Http ||
+               type == SecuritySchemeType.OAuth2 ||
+               type == SecuritySchemeType.OpenIdConnect;
+    }
+
+    private static string AllocateUniqueName(string baseName, IEnumerable<string> existingNames)
+    {
+        var usedNames = new HashSet<string>(existingNames, StringComparer.OrdinalIgnoreCase);
+        if (usedNames.Add(baseName))
+        {
+            return baseName;
+        }
+
+        var suffix = 2;
+        while (!usedNames.Add($"{baseName}{suffix}"))
+        {
+            suffix++;
+        }
+
+        return $"{baseName}{suffix}";
     }
 
     private static ParameterDefinition ResolveParameter(
@@ -1928,7 +2062,8 @@ internal static class OpenApi3DocumentNormalizer
 
     private static NormalizedOpenApiDocument ApplyOutSystemsCompatibility(
         IReadOnlyList<SchemaDefinition> schemas,
-        IReadOnlyList<OperationDefinition> operations)
+        IReadOnlyList<OperationDefinition> operations,
+        RuntimeContextDefinition runtimeContext)
     {
         var emptySchemaNames = schemas
             .Where(schema => schema.Properties.Count == 0)
@@ -1953,7 +2088,7 @@ internal static class OpenApi3DocumentNormalizer
             })
             .ToList();
 
-        return new NormalizedOpenApiDocument(compatibleSchemas, compatibleOperations);
+        return new NormalizedOpenApiDocument(compatibleSchemas, compatibleOperations, runtimeContext);
     }
 
     private static NormalizedOpenApiDocument PruneUnreachableSchemas(NormalizedOpenApiDocument document)

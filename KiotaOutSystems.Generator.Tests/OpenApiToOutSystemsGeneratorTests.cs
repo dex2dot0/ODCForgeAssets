@@ -112,6 +112,137 @@ public class OpenApiToOutSystemsGeneratorTests
     }
 
     [Fact]
+    public async Task Generate_WithSwagger2QueryApiKeySecurity_EmitsRequestOptionsAndDefaultBaseUrl()
+    {
+        var specPath = CreateTempSpecFile("""
+            {
+              "swagger": "2.0",
+              "info": { "title": "Weather Probe", "version": "1.0.0" },
+              "host": "api.weatherapi.com",
+              "basePath": "/v1",
+              "schemes": ["https"],
+              "paths": {
+                "/current.json": {
+                  "get": {
+                    "operationId": "realtime-weather",
+                    "parameters": [
+                      { "name": "q", "in": "query", "required": true, "type": "string" }
+                    ],
+                    "security": [{ "ApiKeyAuth": [] }],
+                    "responses": {
+                      "200": {
+                        "description": "ok",
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "temp_c": { "type": "number" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "securityDefinitions": {
+                "ApiKeyAuth": {
+                  "type": "apiKey",
+                  "name": "key",
+                  "in": "query"
+                }
+              }
+            }
+            """);
+        var outputDirectory = CreateTempDirectory();
+        var options = CreateMinimalOptions(specPath, outputDirectory);
+        var loadedSpec = await SpecSourceLoader.LoadAsync(options.SpecSource, CancellationToken.None);
+
+        OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
+
+        var structuresFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedStructures.g.cs"));
+        var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
+        var manifestFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "generation-manifest.json"));
+
+        Assert.Contains("public struct RequestOptions", structuresFile);
+        Assert.Contains("public string? BaseUrl", structuresFile);
+        Assert.Contains("public string? ApiKey", structuresFile);
+        Assert.Contains("ResolveActiveSecuritySchemes(requestOptions, new[] { \"ApiKeyAuth\" })", actionsFile);
+        Assert.Contains("new ApiKeyAuthenticationProvider(_requestOptions.ApiKey!, \"key\", ApiKeyAuthenticationProvider.KeyLocation.QueryParameter", actionsFile);
+        Assert.Contains("\"https://api.weatherapi.com/v1\"", actionsFile);
+        Assert.Contains("\"RequestOptions\"", manifestFile);
+    }
+
+    [Fact]
+    public async Task Generate_WithHeaderBasicAndBearerSecurity_EmitsGenericAuthHelpers()
+    {
+        var specPath = CreateTempSpecFile("""
+            {
+              "openapi": "3.0.1",
+              "info": { "title": "Auth Probe", "version": "1.0.0" },
+              "servers": [{ "url": "https://example.com/api" }],
+              "paths": {
+                "/reports": {
+                  "get": {
+                    "operationId": "list-reports",
+                    "security": [
+                      { "ApiKeyHeader": [] },
+                      { "BasicAuth": [] },
+                      { "BearerAuth": [] }
+                    ],
+                    "responses": {
+                      "200": {
+                        "description": "ok",
+                        "content": {
+                          "application/json": {
+                            "schema": {
+                              "type": "array",
+                              "items": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "components": {
+                "securitySchemes": {
+                  "ApiKeyHeader": {
+                    "type": "apiKey",
+                    "name": "X-API-Key",
+                    "in": "header"
+                  },
+                  "BasicAuth": {
+                    "type": "http",
+                    "scheme": "basic"
+                  },
+                  "BearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer"
+                  }
+                }
+              }
+            }
+            """);
+        var outputDirectory = CreateTempDirectory();
+        var options = CreateMinimalOptions(specPath, outputDirectory);
+        var loadedSpec = await SpecSourceLoader.LoadAsync(options.SpecSource, CancellationToken.None);
+
+        OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
+
+        var structuresFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedStructures.g.cs"));
+        var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
+
+        Assert.Contains("public string? ApiKey", structuresFile);
+        Assert.Contains("public string? Username", structuresFile);
+        Assert.Contains("public string? Password", structuresFile);
+        Assert.Contains("public string? AccessToken", structuresFile);
+        Assert.Contains("ResolveActiveSecuritySchemes(requestOptions, new[] { \"ApiKeyHeader\" }, new[] { \"BasicAuth\" }, new[] { \"BearerAuth\" })", actionsFile);
+        Assert.Contains("new ApiKeyAuthenticationProvider(_requestOptions.ApiKey!, \"X-API-Key\", ApiKeyAuthenticationProvider.KeyLocation.Header", actionsFile);
+        Assert.Contains("new BasicAuthenticationProvider(_requestOptions.Username!, _requestOptions.Password!)", actionsFile);
+        Assert.Contains("new BaseBearerTokenAuthenticationProvider(new GeneratedAccessTokenProvider(_requestOptions.AccessToken!))", actionsFile);
+    }
+
+    [Fact]
     public async Task Generate_WithPetstorePathTargets_OnlyEmitsPetOperationsAndRequiredStructures()
     {
         var repoRoot = GetRepoRoot();
@@ -146,8 +277,8 @@ public class OpenApiToOutSystemsGeneratorTests
         var structuresFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedStructures.g.cs"));
         var manifestFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "generation-manifest.json"));
 
-        Assert.Contains("AddPet(Pet requestBody)", actionsFile);
-        Assert.Contains("UpdatePet(Pet requestBody)", actionsFile);
+        Assert.Contains("AddPet(RequestOptions requestOptions, Pet requestBody)", actionsFile);
+        Assert.Contains("UpdatePet(RequestOptions requestOptions, Pet requestBody)", actionsFile);
         Assert.Contains("FindPetsByStatus", actionsFile);
         Assert.Contains("FindPetsByTags", actionsFile);
         Assert.Contains("GetPetById", actionsFile);
@@ -1184,7 +1315,7 @@ public class OpenApiToOutSystemsGeneratorTests
         OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
 
         var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
-        Assert.Contains("_client.App.Installations[installationId.ToString()].Access_tokens", actionsFile);
+        Assert.Contains("client.App.Installations[installationId.ToString()].Access_tokens", actionsFile);
         Assert.Contains("Probe.Client.App.Installations.Item.Access_tokens.Access_tokensPostRequestBody", actionsFile);
     }
 
@@ -1272,7 +1403,7 @@ public class OpenApiToOutSystemsGeneratorTests
         OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
 
         var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
-        Assert.Contains("GetEnterprise1Day(DateTime day)", actionsFile);
+        Assert.Contains("GetEnterprise1Day(RequestOptions requestOptions, DateTime day)", actionsFile);
         Assert.Contains("config.QueryParameters.Day = day;", actionsFile);
     }
 
@@ -1340,7 +1471,7 @@ public class OpenApiToOutSystemsGeneratorTests
         OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
 
         var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
-        Assert.Contains("GetEnterprise1Day(DateTime day)", actionsFile);
+        Assert.Contains("GetEnterprise1Day(RequestOptions requestOptions, DateTime day)", actionsFile);
         Assert.Contains("config.QueryParameters.Day = GeneratedModelMapper.ToKiotaDate(day);", actionsFile);
     }
 
@@ -1473,7 +1604,7 @@ public class OpenApiToOutSystemsGeneratorTests
         var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
 
         Assert.Contains("public List<string> SortBy", structuresFile);
-        Assert.Contains("public List<string> ReposGetCodeFrequencyStats(string owner, string repo)", actionsFile);
+        Assert.Contains("public List<string> ReposGetCodeFrequencyStats(RequestOptions requestOptions, string owner, string repo)", actionsFile);
     }
 
     [Fact]
@@ -1859,8 +1990,8 @@ public class OpenApiToOutSystemsGeneratorTests
         OpenApiToOutSystemsGenerator.Generate(options, loadedSpec);
 
         var actionsFile = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "GeneratedActions.g.cs"));
-        Assert.Contains("_client.App.Hook.Deliveries[deliveryId]", actionsFile);
-        Assert.DoesNotContain("_client.App.Hook.Deliveries[deliveryId.ToString()]", actionsFile);
+        Assert.Contains("client.App.Hook.Deliveries[deliveryId]", actionsFile);
+        Assert.DoesNotContain("client.App.Hook.Deliveries[deliveryId.ToString()]", actionsFile);
     }
 
     private static GeneratorOptions CreateOptions(string specSource, string outputDirectory, string kiotaLockPath, string? configPath = null)

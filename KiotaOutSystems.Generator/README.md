@@ -198,6 +198,28 @@ Example:
 
 The generator keeps the selected actions plus any OutSystems request/response structures they still need. For the Petstore example, targeting `"/pet*"` excludes `/store/*` and `/user/*` actions while retaining supporting models such as `Pet`, `Category`, and `Tag`.
 
+## Runtime request options
+
+Generated actions now take a shared `RequestOptions` input as their first parameter. This keeps the external library stateless while letting OutSystems provide runtime connection details such as the API base URL and authentication values.
+
+The generated `RequestOptions` structure always includes:
+
+- `BaseUrl` to override the default URL derived from the OpenAPI document
+
+It also includes auth fields derived from the security schemes used by the generated operations, for example:
+
+- `ApiKey` for a single API-key scheme
+- `Username` and `Password` for HTTP basic auth
+- `AccessToken` for bearer, OAuth2, or OpenID Connect token-based auth
+
+Example generated action shape:
+
+```csharp
+RealtimeWeather(RequestOptions requestOptions, string q, string lang = "", bool includeLang = false)
+```
+
+If the operation requires authentication and the required values are not present in `RequestOptions`, the generated action throws an `InvalidOperationException` before making the downstream request.
+
 ## OutSystems interface emission
 
 OutSystems packages can expose only one interface decorated with `OSInterface` per assembly. By default, the generator emits that interface and the corresponding `OSAction` members.

@@ -1,0 +1,22 @@
+{
+  "inputName": "Weather API",
+  "source": "C:\\Projects\\dex2dot0\\ODCForgeAssets\\WeatherApiKiota\\Specs\\weatherapi.yaml",
+  "specHash": "sha256:85B6679656E93BE13EB87F81C92BE8C26E77D05C6CCC64C519AA5AA500834BD0",
+  "specificationVersion": "2.0",
+  "ClientNamespace": "WeatherApiKiota.Client",
+  "ClientClassName": "WeatherApiClient",
+  "KiotaVersion": "1.31.1",
+  "emitInterface": true,
+  "iconResourceName": "WeatherApiKiota.resources.ProjectIcon.png",
+  "structures": [
+    "Location",
+    "Current",
+    "RealtimeWeatherResponse",
+    "CurrentCondition",
+    "CurrentAirQuality",
+    "RequestOptions"
+  ],
+  "operations": [
+    "RealtimeWeather"
+  ]
+}

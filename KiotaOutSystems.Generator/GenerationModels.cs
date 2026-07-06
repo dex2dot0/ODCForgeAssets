@@ -4,7 +4,8 @@ internal sealed record KiotaMetadata(string ClientNamespace, string ClientClassN
 
 internal sealed record NormalizedOpenApiDocument(
     IReadOnlyList<SchemaDefinition> Schemas,
-    IReadOnlyList<OperationDefinition> Operations);
+    IReadOnlyList<OperationDefinition> Operations,
+    RuntimeContextDefinition RuntimeContext);
 
 internal sealed record SchemaDefinition(
     string Name,
@@ -32,7 +33,8 @@ internal sealed record OperationDefinition(
     string ResourcePropertyName,
     IReadOnlyList<ParameterDefinition> Parameters,
     BodyDefinition? RequestBody,
-    ResponseDefinition? Response);
+    ResponseDefinition? Response,
+    IReadOnlyList<SecurityRequirementDefinition> SecurityRequirements);
 
 internal sealed record ParameterDefinition(
     string Name,
@@ -56,3 +58,19 @@ internal sealed record ResponseDefinition(
     string Kind,
     string? SchemaName,
     string? MediaType = null);
+
+internal sealed record RuntimeContextDefinition(
+    string? DefaultBaseUrl,
+    string RequestOptionsTypeName,
+    IReadOnlyList<SecuritySchemeDefinition> SecuritySchemes);
+
+internal sealed record SecuritySchemeDefinition(
+    string Id,
+    string Type,
+    string? Location,
+    string? ParameterName,
+    string? Scheme,
+    string? Description);
+
+internal sealed record SecurityRequirementDefinition(
+    IReadOnlyList<string> SchemeIds);

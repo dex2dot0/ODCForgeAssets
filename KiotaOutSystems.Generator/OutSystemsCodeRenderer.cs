@@ -8,7 +8,10 @@ internal static class OutSystemsCodeRenderer
     private static readonly Dictionary<string, string?> RequestBuilderSourceCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, bool> EnumTypeCache = new(StringComparer.Ordinal);
 
-    public static string RenderStructures(string generationNamespace, IReadOnlyList<SchemaDefinition> schemas)
+    public static string RenderStructures(
+        string generationNamespace,
+        IReadOnlyList<SchemaDefinition> schemas,
+        RuntimeContextDefinition runtimeContext)
     {
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
@@ -44,6 +47,8 @@ internal static class OutSystemsCodeRenderer
             builder.AppendLine();
         }
 
+        builder.Append(RenderRequestOptionsStructure(runtimeContext));
+
         return builder.ToString().TrimEnd() + Environment.NewLine;
     }
 
@@ -54,6 +59,7 @@ internal static class OutSystemsCodeRenderer
         string inputName,
         IReadOnlyList<SchemaDefinition> schemas,
         IReadOnlyList<OperationDefinition> operations,
+        RuntimeContextDefinition runtimeContext,
         KiotaMetadata kiotaMetadata,
         bool emitInterface,
         string? iconResourceName)
@@ -62,6 +68,7 @@ internal static class OutSystemsCodeRenderer
         var generatedStructureNames = schemas
             .Select(schema => schema.Name)
             .ToHashSet(StringComparer.Ordinal);
+        generatedStructureNames.Add(runtimeContext.RequestOptionsTypeName);
         var schemaMap = schemas.ToDictionary(schema => schema.Name, StringComparer.Ordinal);
         builder.AppendLine("#nullable enable");
         builder.AppendLine("using Microsoft.Kiota.Abstractions;");
@@ -229,27 +236,21 @@ internal static class OutSystemsCodeRenderer
 
         builder.AppendLine("}");
         builder.AppendLine();
+        builder.Append(RenderAuthenticationProvider(runtimeContext));
+        builder.AppendLine();
         var implementedInterfaceClause = emitInterface ? $" : {interfaceName}" : string.Empty;
         builder.AppendLine($"public class {className}{implementedInterfaceClause}");
         builder.AppendLine("{");
-        builder.AppendLine($"    private readonly {kiotaMetadata.ClientNamespace}.{kiotaMetadata.ClientClassName} _client;");
-        builder.AppendLine();
         builder.AppendLine($"    public {className}()");
         builder.AppendLine("    {");
-        builder.AppendLine("        var requestAdapter = new HttpClientRequestAdapter(");
-        builder.AppendLine("            new AnonymousAuthenticationProvider(),");
-        builder.AppendLine("            new JsonParseNodeFactory(),");
-        builder.AppendLine("            new JsonSerializationWriterFactory(),");
-        builder.AppendLine("            new HttpClient(),");
-        builder.AppendLine("            null);");
-        builder.AppendLine();
-        builder.AppendLine($"        _client = new {kiotaMetadata.ClientNamespace}.{kiotaMetadata.ClientClassName}(requestAdapter);");
         builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.Append(RenderRequestConfigurationHelpers(runtimeContext, kiotaMetadata));
         builder.AppendLine();
 
         foreach (var operation in operations)
         {
-                builder.AppendLine(RenderClassMethod(operation, generatedStructureNames, schemaMap, kiotaMetadata));
+                builder.AppendLine(RenderClassMethod(operation, generatedStructureNames, schemaMap, runtimeContext, kiotaMetadata));
             builder.AppendLine();
         }
 
@@ -268,7 +269,7 @@ internal static class OutSystemsCodeRenderer
 
             foreach (var operation in operations)
             {
-                builder.AppendLine(RenderInterfaceMethod(operation));
+                builder.AppendLine(RenderInterfaceMethod(operation, runtimeContext));
                 builder.AppendLine();
             }
 
@@ -282,16 +283,19 @@ internal static class OutSystemsCodeRenderer
         OperationDefinition operation,
         IReadOnlySet<string> generatedStructureNames,
         IReadOnlyDictionary<string, SchemaDefinition> schemaMap,
+        RuntimeContextDefinition runtimeContext,
         KiotaMetadata kiotaMetadata)
     {
         var builder = new StringBuilder();
         var returnsArray = string.Equals(operation.Response?.Kind, "array", StringComparison.Ordinal);
         var returnsVoid = operation.Response is null || string.Equals(operation.Response.Kind, "void", StringComparison.Ordinal);
-        var requestBuilderExpression = BuildRequestBuilderExpression(operation, kiotaMetadata);
+        var requestBuilderExpression = BuildRequestBuilderExpression(operation, kiotaMetadata, "client");
         var preferredMethodName = ResolvePreferredRequestMethodName(operation, kiotaMetadata);
         var getRequestArguments = RenderGetRequestArguments(operation, generatedStructureNames, schemaMap, kiotaMetadata);
-        builder.AppendLine($"    public {GetReturnType(operation)} {operation.Name}({RenderMethodParameters(operation)})");
+        builder.AppendLine($"    public {GetReturnType(operation)} {operation.Name}({RenderMethodParameters(operation, runtimeContext)})");
         builder.AppendLine("    {");
+        builder.AppendLine($"        var activeSecuritySchemes = ResolveActiveSecuritySchemes(requestOptions{RenderSecurityRequirementArguments(operation)});");
+        builder.AppendLine("        var client = CreateClient(requestOptions, activeSecuritySchemes);");
         builder.AppendLine($"        var requestBuilder = {requestBuilderExpression};");
 
         switch (operation.HttpMethod)
@@ -450,7 +454,7 @@ internal static class OutSystemsCodeRenderer
         return builder.ToString().TrimEnd();
     }
 
-    private static string RenderInterfaceMethod(OperationDefinition operation)
+    private static string RenderInterfaceMethod(OperationDefinition operation, RuntimeContextDefinition runtimeContext)
     {
         var builder = new StringBuilder();
         builder.Append($"    [OSAction(Description = \"{EscapeString(operation.Description)}\"");
@@ -459,7 +463,7 @@ internal static class OutSystemsCodeRenderer
             builder.Append($", OriginalName = \"{EscapeString(operation.DefaultName)}\"");
         }
         builder.AppendLine($"{RenderReturnMetadata(operation)})]");
-        builder.AppendLine($"    {GetReturnType(operation)} {operation.Name}({RenderMethodParameters(operation, includeAttributes: true)});");
+        builder.AppendLine($"    {GetReturnType(operation)} {operation.Name}({RenderMethodParameters(operation, runtimeContext, includeAttributes: true)});");
         return builder.ToString().TrimEnd();
     }
 
@@ -508,10 +512,18 @@ internal static class OutSystemsCodeRenderer
             : operation.Response.SchemaName!;
     }
 
-    private static string RenderMethodParameters(OperationDefinition operation, bool includeAttributes = false)
+    private static string RenderMethodParameters(
+        OperationDefinition operation,
+        RuntimeContextDefinition runtimeContext,
+        bool includeAttributes = false)
     {
         var requiredParameters = new List<string>();
         var optionalParameters = new List<string>();
+
+        var requestOptionsAttribute = includeAttributes
+            ? BuildParameterAttribute("Runtime request configuration including base URL and authentication.", null) + " "
+            : string.Empty;
+        requiredParameters.Add($"{requestOptionsAttribute}{runtimeContext.RequestOptionsTypeName} requestOptions");
 
         foreach (var parameter in operation.Parameters)
         {
@@ -545,14 +557,27 @@ internal static class OutSystemsCodeRenderer
         return string.Join(", ", requiredParameters.Concat(optionalParameters));
     }
 
-    private static string BuildRequestBuilderExpression(OperationDefinition operation, KiotaMetadata kiotaMetadata)
+    private static string RenderSecurityRequirementArguments(OperationDefinition operation)
+    {
+        if (operation.SecurityRequirements.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var renderedRequirements = operation.SecurityRequirements
+            .Select(requirement => $"new[] {{ {string.Join(", ", requirement.SchemeIds.Select(id => $"\"{EscapeString(id)}\""))} }}");
+
+        return ", " + string.Join(", ", renderedRequirements);
+    }
+
+    private static string BuildRequestBuilderExpression(OperationDefinition operation, KiotaMetadata kiotaMetadata, string clientVariableName)
     {
         var pathParameters = operation.Parameters
             .Where(parameter => parameter.Location == "path")
             .ToDictionary(parameter => parameter.OriginalName, parameter => parameter, StringComparer.OrdinalIgnoreCase);
         var literalSegments = new List<string>();
 
-        var builder = "_client";
+        var builder = clientVariableName;
         foreach (var segment in operation.Path.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries))
         {
             if (segment.StartsWith('{') && segment.EndsWith('}'))
@@ -1225,5 +1250,250 @@ internal static class OutSystemsCodeRenderer
             "rawJson" => "The raw JSON request body payload.",
             _ => "The JSON request body payload."
         };
+    }
+
+    private static string RenderRequestOptionsStructure(RuntimeContextDefinition runtimeContext)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"[OSStructure(Description = \"Runtime request configuration including base URL and authentication.\")]");
+        builder.AppendLine($"public struct {runtimeContext.RequestOptionsTypeName}");
+        builder.AppendLine("{");
+        builder.AppendLine("    [OSStructureField(Description = \"Overrides the default API base URL when provided.\")]");
+        builder.AppendLine("    public string? BaseUrl { get; set; }");
+        builder.AppendLine();
+
+        foreach (var scheme in runtimeContext.SecuritySchemes)
+        {
+            foreach (var field in GetSecuritySchemeFields(scheme, runtimeContext.SecuritySchemes))
+            {
+                builder.AppendLine($"    [OSStructureField(Description = \"{EscapeString(field.Description)}\")]");
+                builder.AppendLine($"    public string? {field.PropertyName} {{ get; set; }}");
+                builder.AppendLine();
+            }
+        }
+
+        builder.AppendLine("}");
+        builder.AppendLine();
+        return builder.ToString();
+    }
+
+    private static string RenderAuthenticationProvider(RuntimeContextDefinition runtimeContext)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("internal sealed class GeneratedAccessTokenProvider : IAccessTokenProvider");
+        builder.AppendLine("{");
+        builder.AppendLine("    private readonly string? _accessToken;");
+        builder.AppendLine();
+        builder.AppendLine("    public GeneratedAccessTokenProvider(string? accessToken)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        _accessToken = accessToken;");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public AllowedHostsValidator AllowedHostsValidator { get; } = new();");
+        builder.AppendLine();
+        builder.AppendLine("    public Task<string> GetAuthorizationTokenAsync(Uri uri, Dictionary<string, object>? additionalAuthenticationContext = null, CancellationToken cancellationToken = default)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return Task.FromResult(_accessToken ?? string.Empty);");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        builder.AppendLine();
+        builder.AppendLine("internal sealed class GeneratedAuthenticationProvider : IAuthenticationProvider");
+        builder.AppendLine("{");
+        builder.AppendLine($"    private readonly {runtimeContext.RequestOptionsTypeName} _requestOptions;");
+        builder.AppendLine("    private readonly HashSet<string> _activeSchemeIds;");
+        builder.AppendLine();
+        builder.AppendLine($"    public GeneratedAuthenticationProvider({runtimeContext.RequestOptionsTypeName} requestOptions, IEnumerable<string> activeSchemeIds)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        _requestOptions = requestOptions;");
+        builder.AppendLine("        _activeSchemeIds = new HashSet<string>(activeSchemeIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public async Task AuthenticateRequestAsync(RequestInformation request, Dictionary<string, object>? additionalAuthenticationContext = null, CancellationToken cancellationToken = default)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        foreach (var schemeId in _activeSchemeIds)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            switch (schemeId)");
+        builder.AppendLine("            {");
+
+        foreach (var scheme in runtimeContext.SecuritySchemes)
+        {
+            builder.AppendLine($"                case \"{EscapeString(scheme.Id)}\":");
+            foreach (var line in RenderSecuritySchemeApplication(scheme, runtimeContext))
+            {
+                builder.AppendLine($"                    {line}");
+            }
+            builder.AppendLine("                    break;");
+        }
+
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        return;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string RenderRequestConfigurationHelpers(RuntimeContextDefinition runtimeContext, KiotaMetadata kiotaMetadata)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"    private static {kiotaMetadata.ClientNamespace}.{kiotaMetadata.ClientClassName} CreateClient({runtimeContext.RequestOptionsTypeName} requestOptions, IEnumerable<string> activeSecuritySchemes)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        var requestAdapter = new HttpClientRequestAdapter(");
+        builder.AppendLine("            new GeneratedAuthenticationProvider(requestOptions, activeSecuritySchemes),");
+        builder.AppendLine("            new JsonParseNodeFactory(),");
+        builder.AppendLine("            new JsonSerializationWriterFactory(),");
+        builder.AppendLine("            new HttpClient(),");
+        builder.AppendLine("            null);");
+        builder.AppendLine();
+        builder.AppendLine($"        var resolvedBaseUrl = string.IsNullOrWhiteSpace(requestOptions.BaseUrl) ? {(runtimeContext.DefaultBaseUrl is null ? "string.Empty" : $"\"{EscapeString(runtimeContext.DefaultBaseUrl)}\"")} : requestOptions.BaseUrl!;");
+        builder.AppendLine("        if (!string.IsNullOrWhiteSpace(resolvedBaseUrl))");
+        builder.AppendLine("        {");
+        builder.AppendLine("            requestAdapter.BaseUrl = resolvedBaseUrl;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine($"        return new {kiotaMetadata.ClientNamespace}.{kiotaMetadata.ClientClassName}(requestAdapter);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine($"    private static string[] ResolveActiveSecuritySchemes({runtimeContext.RequestOptionsTypeName} requestOptions, params string[][] securityRequirementOptions)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        if (securityRequirementOptions is null || securityRequirementOptions.Length == 0)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return Array.Empty<string>();");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        foreach (var requirement in securityRequirementOptions)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            if (requirement.All(schemeId => IsSecuritySchemeConfigured(requestOptions, schemeId)))");
+        builder.AppendLine("            {");
+        builder.AppendLine("                return requirement;");
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        throw new InvalidOperationException(\"The supplied request options do not satisfy the authentication requirements for this operation.\");");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine($"    private static bool IsSecuritySchemeConfigured({runtimeContext.RequestOptionsTypeName} requestOptions, string schemeId)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return schemeId switch");
+        builder.AppendLine("        {");
+        foreach (var scheme in runtimeContext.SecuritySchemes)
+        {
+            builder.AppendLine($"            \"{EscapeString(scheme.Id)}\" => {RenderSecuritySchemeConfiguredExpression(scheme, runtimeContext.SecuritySchemes)},");
+        }
+        builder.AppendLine("            _ => false");
+        builder.AppendLine("        };");
+        builder.AppendLine("    }");
+        return builder.ToString().TrimEnd();
+    }
+
+    private static IEnumerable<string> RenderSecuritySchemeApplication(
+        SecuritySchemeDefinition scheme,
+        RuntimeContextDefinition runtimeContext)
+    {
+        var fields = GetSecuritySchemeFields(scheme, runtimeContext.SecuritySchemes);
+        if (string.Equals(scheme.Type, "ApiKey", StringComparison.OrdinalIgnoreCase))
+        {
+            var field = fields.Single();
+            return scheme.Location?.ToLowerInvariant() switch
+            {
+                "header" =>
+                [
+                    $"await new ApiKeyAuthenticationProvider(_requestOptions.{field.PropertyName}!, \"{EscapeString(scheme.ParameterName ?? scheme.Id)}\", ApiKeyAuthenticationProvider.KeyLocation.Header, {RenderAllowedHostsArgument(runtimeContext)}).AuthenticateRequestAsync(request, additionalAuthenticationContext, cancellationToken).ConfigureAwait(false);"
+                ],
+                "cookie" => [$"request.Headers.Add(\"Cookie\", \"{EscapeString(scheme.ParameterName ?? scheme.Id)}=\" + _requestOptions.{field.PropertyName}!);"],
+                _ =>
+                [
+                    $"await new ApiKeyAuthenticationProvider(_requestOptions.{field.PropertyName}!, \"{EscapeString(scheme.ParameterName ?? scheme.Id)}\", ApiKeyAuthenticationProvider.KeyLocation.QueryParameter, {RenderAllowedHostsArgument(runtimeContext)}).AuthenticateRequestAsync(request, additionalAuthenticationContext, cancellationToken).ConfigureAwait(false);"
+                ]
+            };
+        }
+
+        if (string.Equals(scheme.Type, "Http", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(scheme.Scheme, "basic", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+            [
+                $"await new BasicAuthenticationProvider(_requestOptions.{fields[0].PropertyName}!, _requestOptions.{fields[1].PropertyName}!).AuthenticateRequestAsync(request, additionalAuthenticationContext, cancellationToken).ConfigureAwait(false);"
+            ];
+        }
+
+        var tokenField = fields.Single();
+        return
+        [
+            $"await new BaseBearerTokenAuthenticationProvider(new GeneratedAccessTokenProvider(_requestOptions.{tokenField.PropertyName}!)).AuthenticateRequestAsync(request, additionalAuthenticationContext, cancellationToken).ConfigureAwait(false);"
+        ];
+    }
+
+    private static string RenderAllowedHostsArgument(RuntimeContextDefinition runtimeContext)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeContext.DefaultBaseUrl) ||
+            !Uri.TryCreate(runtimeContext.DefaultBaseUrl, UriKind.Absolute, out var defaultUri) ||
+            string.IsNullOrWhiteSpace(defaultUri.Host))
+        {
+            return "Array.Empty<string>()";
+        }
+
+        return $"new[] {{ \"{EscapeString(defaultUri.Host)}\" }}";
+    }
+
+    private static string RenderSecuritySchemeConfiguredExpression(
+        SecuritySchemeDefinition scheme,
+        IReadOnlyList<SecuritySchemeDefinition> allSchemes)
+    {
+        var fields = GetSecuritySchemeFields(scheme, allSchemes);
+        return fields.Count switch
+        {
+            1 => $"!string.IsNullOrWhiteSpace(requestOptions.{fields[0].PropertyName})",
+            _ => string.Join(" && ", fields.Select(field => $"!string.IsNullOrWhiteSpace(requestOptions.{field.PropertyName})"))
+        };
+    }
+
+    private static IReadOnlyList<(string PropertyName, string Description)> GetSecuritySchemeFields(
+        SecuritySchemeDefinition scheme,
+        IReadOnlyList<SecuritySchemeDefinition> allSchemes)
+    {
+        var multipleSchemesOfType = allSchemes.Count(candidate =>
+            string.Equals(candidate.Type, scheme.Type, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(candidate.Scheme, scheme.Scheme, StringComparison.OrdinalIgnoreCase)) > 1;
+        var prefix = multipleSchemesOfType ? SanitizeIdentifier(scheme.Id) : string.Empty;
+
+        if (string.Equals(scheme.Type, "ApiKey", StringComparison.OrdinalIgnoreCase))
+        {
+            return [(string.IsNullOrWhiteSpace(prefix) ? "ApiKey" : $"{prefix}ApiKey", $"API key for security scheme '{scheme.Id}'.")];
+        }
+
+        if (string.Equals(scheme.Type, "Http", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(scheme.Scheme, "basic", StringComparison.OrdinalIgnoreCase))
+        {
+            var usernameName = string.IsNullOrWhiteSpace(prefix) ? "Username" : $"{prefix}Username";
+            var passwordName = string.IsNullOrWhiteSpace(prefix) ? "Password" : $"{prefix}Password";
+            return
+            [
+                (usernameName, $"Username for security scheme '{scheme.Id}'."),
+                (passwordName, $"Password for security scheme '{scheme.Id}'.")
+            ];
+        }
+
+        return [(string.IsNullOrWhiteSpace(prefix) ? "AccessToken" : $"{prefix}AccessToken", $"Access token for security scheme '{scheme.Id}'.")];
+    }
+
+    private static string SanitizeIdentifier(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        var capitalizeNext = true;
+        foreach (var character in value)
+        {
+            if (!char.IsLetterOrDigit(character))
+            {
+                capitalizeNext = true;
+                continue;
+            }
+
+            builder.Append(capitalizeNext ? char.ToUpperInvariant(character) : character);
+            capitalizeNext = false;
+        }
+
+        return builder.Length == 0 ? "Auth" : builder.ToString();
     }
 }

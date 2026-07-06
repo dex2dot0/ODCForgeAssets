@@ -27,7 +27,7 @@ internal static class OpenApiToOutSystemsGenerator
             WriteFile(
                 resolvedOptions.OutputDirectory,
                 "GeneratedStructures.g.cs",
-                OutSystemsCodeRenderer.RenderStructures(generationNamespace, normalizedDocument.Schemas)),
+                OutSystemsCodeRenderer.RenderStructures(generationNamespace, normalizedDocument.Schemas, normalizedDocument.RuntimeContext)),
             WriteFile(
                 resolvedOptions.OutputDirectory,
                 "GeneratedActions.g.cs",
@@ -38,6 +38,7 @@ internal static class OpenApiToOutSystemsGenerator
                     inputName,
                     normalizedDocument.Schemas,
                     normalizedDocument.Operations,
+                    normalizedDocument.RuntimeContext,
                     kiotaMetadata,
                     emitInterface,
                     iconResourceName))
@@ -54,7 +55,7 @@ internal static class OpenApiToOutSystemsGenerator
             kiotaMetadata.KiotaVersion,
             emitInterface,
             iconResourceName,
-            structures = normalizedDocument.Schemas.Select(schema => schema.Name).ToArray(),
+            structures = normalizedDocument.Schemas.Select(schema => schema.Name).Append(normalizedDocument.RuntimeContext.RequestOptionsTypeName).ToArray(),
             operations = normalizedDocument.Operations.Select(operation => operation.Name).ToArray()
         };
 
@@ -63,7 +64,7 @@ internal static class OpenApiToOutSystemsGenerator
             "generation-manifest.json",
             JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true })));
 
-        return new GenerationResult(generatedFiles, normalizedDocument.Operations.Count, normalizedDocument.Schemas.Count);
+        return new GenerationResult(generatedFiles, normalizedDocument.Operations.Count, normalizedDocument.Schemas.Count + 1);
     }
 
     private static string WriteFile(string outputDirectory, string fileName, string content)
