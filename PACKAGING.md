@@ -32,7 +32,7 @@ Or use PowerShell directly:
 .\generate_upload_package.ps1 -ProjectName MathRound
 ```
 
-This creates `MathRound/bin/Release/MathRound.zip` (Release build, linux-x64 runtime).
+This creates `MathRound/bin/Release/MathRound.zip` (Release build, linux-x64 runtime, `net10.0` target by default in this repo).
 
 ### With Custom Output Name
 
@@ -75,7 +75,7 @@ For more control, use the PowerShell script with parameters:
 | `Configuration`   | No       | `Release`           | Build configuration (`Release` or `Debug`)      |
 | `OutputName`      | No       | `{ProjectName}.zip` | Output zip file name                            |
 | `SelfContained`   | No       | `$false`            | Include .NET runtime in package                 |
-| `TargetFramework` | No       | Auto-detected       | Target framework (auto-detected from `.csproj`) |
+| `TargetFramework` | No       | Auto-detected       | Target framework (auto-detected from `.csproj`, for example `net10.0`) |
 
 **Note:** Runtime is always `linux-x64` for OutSystems compatibility.
 
@@ -103,5 +103,5 @@ Ensure you're running from the repository root and the project name matches the 
 
 ## Prerequisites
 
-- .NET SDK
+- .NET 10 SDK
 - PowerShell (built into Windows)

@@ -16,7 +16,7 @@ If you would like to contribute to the project, please fork the repository and c
 
 ## Code Standards
 
-- All code should be written in C# and be compatible with .NET 8.0.
+- All code should be written in C# and be compatible with .NET 10.0.
 - Code comments are strongly encouraged.
 - All code should include tests as appropriate.
 - All projects should include a README.md file with information about the project.

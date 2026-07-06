@@ -17,7 +17,7 @@ namespace MathRound
             [OSParameter(Description = "The number of decimal places to round to. If not specified, rounds to the nearest integer. If not specified, defaults to 0")] int? decimalPlaces = 0)
         {
             var mode = roundingMode.HasValue ? (MidpointRounding)roundingMode.Value : MidpointRounding.ToEven;
-            return Math.Round(numberToRound, decimalPlaces.Value, mode);
+            return Math.Round(numberToRound, decimalPlaces ?? 0, mode);
         }
 
         [OSAction(Description = "Rounds a double-precision number using the specified rounding mode and decimal places", ReturnDescription = "The rounded double-precision number", ReturnName = "RoundedValue")]
@@ -27,7 +27,7 @@ namespace MathRound
             [OSParameter(Description = "The number of decimal places to round to. If not specified, rounds to the nearest integer. If not specified, defaults to 0")] int? decimalPlaces = 0)
         {
             var mode = roundingMode.HasValue ? (MidpointRounding)roundingMode.Value : MidpointRounding.ToEven;
-            return Math.Round(numberToRound, decimalPlaces.Value, mode);
+            return Math.Round(numberToRound, decimalPlaces ?? 0, mode);
         }
 
         [OSAction(Description = "Returns the smallest integer greater than or equal to the specified decimal number", ReturnDescription = "The smallest integer greater than or equal to the specified decimal number", ReturnName = "CeilingValue")]

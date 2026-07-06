@@ -10,7 +10,7 @@ param(
 
     [string]$GeneratedInterfaceName,
 
-    [string]$TargetFramework = "net8.0",
+    [string]$TargetFramework = "net10.0",
 
     [string]$SolutionPath,
 

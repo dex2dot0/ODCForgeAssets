@@ -362,7 +362,7 @@ public class OpenApiToOutSystemsGeneratorTests
         File.WriteAllText(Path.Combine(projectPath, $"{projectName}.csproj"), """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net8.0</TargetFramework>
+                <TargetFramework>net10.0</TargetFramework>
               </PropertyGroup>
               <ItemGroup>
                 <Content Include="resources\legacy.png">
@@ -400,7 +400,7 @@ public class OpenApiToOutSystemsGeneratorTests
         File.WriteAllText(Path.Combine(projectPath, $"{projectName}.csproj"), """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net8.0</TargetFramework>
+                <TargetFramework>net10.0</TargetFramework>
               </PropertyGroup>
             </Project>
             """);
